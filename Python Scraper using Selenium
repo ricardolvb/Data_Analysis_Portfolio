@@ -1,1 +1,72 @@
+# importing all necessary libraries
+import time
+import pandas as pd
+from selenium import webdriver
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.common.exceptions import ElementClickInterceptedException
+import undetected_chromedriver as uc
 
+# variable to store the link(s)
+url = 'https://www.py4e.com'
+
+# dictionary for dataframe
+data = {'Title': [], 'Description': [], 'Link':[]}
+
+## SCRAPER ##
+# create options
+options = webdriver.ChromeOptions()
+options.add_argument("start-maximized")
+
+# create driver
+driver = uc.Chrome(driver_executable_path='./chromedriver', options=options)
+
+#enter the website, locate buttons, click on it and extract information
+for u in [url]:
+    driver.get(u)
+    time.sleep(2)
+    
+    # Function to scroll to the end of the webpage
+    def scroll_to_end():
+        # Scroll to the end of the page
+        driver.execute_script("window.scrollTo(0,document.body.scrollHeight);")
+        # Wait for a while to let new content load
+        time.sleep(2)
+    # Scroll to the end of the page until there's no more content to load
+    while True:
+        # get the current height of the page 
+        old_height = driver.execute_script("return document.body.scrollHeight;")
+        # scroll to the end of the page
+        scroll_to_end()
+        # get the new height of the page after scrolling
+        new_height = driver.execute_script("return document.body.scrollHeight;")
+        # if the page did not scroll (no more content to load), break the loop
+        if new_height == old_height:
+            break
+    
+    #locate the courses button and click on it to enter the courses page
+    trainings = driver.find_element(By.XPATH, "//*[contains(text(), 'Lessons')]")
+    trainings.click()
+    time.sleep(2)
+    
+    #get a list of all courses in the page
+    courses = driver.find_element(By.ID, "box")
+    course_cards = courses.find_elements(By.CLASS_NAME, 'card')
+    for e in course_cards:
+        title_content = e.text
+        title = title_content.split('\n\n')[0]
+        description = title_content.split('\n\n')[1]
+        data['Title'].append(title) # title
+        data['Description'].append(description) # description
+        link = e.find_element(By.TAG_NAME, 'a').get_attribute('href')
+        data['Link'].append(link) # link
+        
+#close the driver to free resources
+driver.quit()
+
+# create dataframe
+df = pd.DataFrame(data)
+# save file as csv
+df.to_csv('py4e_courses.csv')
+df
